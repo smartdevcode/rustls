@@ -1,6 +1,5 @@
 use msgs::enums::CipherSuite;
-use msgs::enums::AlertDescription;
-use session::{Session, SessionSecrets, SessionCommon};
+use session::{SessionSecrets, SessionCommon};
 use suites::{SupportedCipherSuite, ALL_CIPHERSUITES};
 use msgs::handshake::{CertificatePayload, DigitallySignedStruct, SessionID};
 use msgs::enums::ContentType;
@@ -325,10 +324,6 @@ impl ClientSessionImpl {
 
     Ok(())
   }
-
-  pub fn send_close_notify(&mut self) {
-    self.common.send_warning_alert(AlertDescription::CloseNotify)
-  }
 }
 
 /// This represents a single TLS client session.
@@ -345,9 +340,7 @@ impl ClientSession {
              hostname: &str) -> ClientSession {
     ClientSession { imp: ClientSessionImpl::new(config, hostname) }
   }
-}
 
-impl Session for ClientSession {
   /// Read TLS content from `rd`.  This method does internal
   /// buffering, so `rd` can supply TLS messages in arbitrary-
   /// sized chunks (like a socket or pipe might).
@@ -357,12 +350,12 @@ impl Session for ClientSession {
   ///
   /// The returned error only relates to IO on `rd`.  TLS-level
   /// errors are emitted from `process_new_packets`.
-  fn read_tls(&mut self, rd: &mut io::Read) -> io::Result<usize> {
+  pub fn read_tls(&mut self, rd: &mut io::Read) -> io::Result<usize> {
     self.imp.common.read_tls(rd)
   }
 
   /// Writes TLS messages to `wr`.
-  fn write_tls(&mut self, wr: &mut io::Write) -> io::Result<()> {
+  pub fn write_tls(&mut self, wr: &mut io::Write) -> io::Result<()> {
     self.imp.common.write_tls(wr)
   }
 
@@ -372,27 +365,20 @@ impl Session for ClientSession {
   ///
   /// Success from this function can mean new plaintext is available:
   /// obtain it using `read`.
-  fn process_new_packets(&mut self) -> Result<(), TLSError> {
+  pub fn process_new_packets(&mut self) -> Result<(), TLSError> {
     self.imp.process_new_packets()
   }
 
   /// Returns true if the caller should call `read_tls` as soon
   /// as possible.
-  fn wants_read(&self) -> bool {
+  pub fn wants_read(&self) -> bool {
     self.imp.wants_read()
   }
 
   /// Returns true if the caller should call `write_tls` as soon
   /// as possible.
-  fn wants_write(&self) -> bool {
+  pub fn wants_write(&self) -> bool {
     self.imp.wants_write()
-  }
-
-  /// Queues a close_notify fatal alert to be sent in the next
-  /// `write_tls` call.  This informs the peer that the
-  /// connection is being closed.
-  fn send_close_notify(&mut self) {
-    self.imp.send_close_notify()
   }
 }
 

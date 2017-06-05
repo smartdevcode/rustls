@@ -17,7 +17,6 @@ use key;
 use std::collections;
 use std::sync::{Arc, Mutex};
 use std::io;
-use std::fmt;
 
 /// A trait for the ability to generate Session IDs, and store
 /// server session data. The keys and values are opaque.
@@ -392,12 +391,6 @@ pub struct ServerSessionImpl {
     pub state: &'static server_hs::State,
 }
 
-impl fmt::Debug for ServerSessionImpl {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("ServerSessionImpl").finish()
-    }
-}
-
 impl ServerSessionImpl {
     pub fn new(server_config: &Arc<ServerConfig>) -> ServerSessionImpl {
         let mut sess = ServerSessionImpl {
@@ -548,7 +541,6 @@ impl ServerSessionImpl {
 ///
 /// Send TLS-protected data to the peer using the `io::Write` trait implementation.
 /// Read data from the peer using the `io::Read` trait implementation.
-#[derive(Debug)]
 pub struct ServerSession {
     // We use the pimpl idiom to hide unimportant details.
     imp: ServerSessionImpl,

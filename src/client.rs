@@ -19,6 +19,7 @@ use key;
 use std::collections;
 use std::sync::{Arc, Mutex};
 use std::io;
+use std::fmt;
 
 /// A trait for the ability to store client session data.
 /// The keys and values are opaque.
@@ -161,6 +162,7 @@ impl ResolvesClientCert for AlwaysResolvesClientCert {
 ///
 /// Making one of these can be expensive, and should be
 /// once per process rather than once per connection.
+#[derive(Clone)]
 pub struct ClientConfig {
     /// List of ciphersuites, in preference order.
     pub ciphersuites: Vec<&'static SupportedCipherSuite>,
@@ -173,13 +175,13 @@ pub struct ClientConfig {
     pub alpn_protocols: Vec<String>,
 
     /// How we store session data or tickets.
-    pub session_persistence: Mutex<Box<StoresClientSessions>>,
+    pub session_persistence: Arc<Mutex<Box<StoresClientSessions>>>,
 
     /// Our MTU.  If None, we don't limit TLS message sizes.
     pub mtu: Option<usize>,
 
     /// How to decide what client auth certificate/keys to use.
-    pub client_auth_cert_resolver: Box<ResolvesClientCert>,
+    pub client_auth_cert_resolver: Arc<ResolvesClientCert>,
 
     /// Whether to support RFC5077 tickets.  You must provide a working
     /// `session_persistence` member for this to have any meaningful
@@ -193,7 +195,7 @@ pub struct ClientConfig {
     pub versions: Vec<ProtocolVersion>,
 
     /// How to verify the server certificate chain.
-    verifier: Box<verify::ServerCertVerifier>,
+    verifier: Arc<verify::ServerCertVerifier>,
 }
 
 impl ClientConfig {
@@ -205,12 +207,12 @@ impl ClientConfig {
             ciphersuites: ALL_CIPHERSUITES.to_vec(),
             root_store: anchors::RootCertStore::empty(),
             alpn_protocols: Vec::new(),
-            session_persistence: Mutex::new(Box::new(NoSessionStorage {})),
+            session_persistence: Arc::new(Mutex::new(Box::new(NoSessionStorage {}))),
             mtu: None,
-            client_auth_cert_resolver: Box::new(FailResolveClientCert {}),
+            client_auth_cert_resolver: Arc::new(FailResolveClientCert {}),
             enable_tickets: true,
             versions: vec![ProtocolVersion::TLSv1_3, ProtocolVersion::TLSv1_2],
-            verifier: Box::new(verify::WebPKIVerifier {})
+            verifier: Arc::new(verify::WebPKIVerifier {})
         }
     }
 
@@ -230,7 +232,7 @@ impl ClientConfig {
 
     /// Sets persistence layer to `persist`.
     pub fn set_persistence(&mut self, persist: Box<StoresClientSessions>) {
-        self.session_persistence = Mutex::new(persist);
+        self.session_persistence = Arc::new(Mutex::new(persist));
     }
 
     /// Sets MTU to `mtu`.  If None, the default is used.
@@ -258,7 +260,7 @@ impl ClientConfig {
     pub fn set_single_client_cert(&mut self,
                                   cert_chain: Vec<key::Certificate>,
                                   key_der: key::PrivateKey) {
-        self.client_auth_cert_resolver = Box::new(AlwaysResolvesClientCert::new_rsa(cert_chain,
+        self.client_auth_cert_resolver = Arc::new(AlwaysResolvesClientCert::new_rsa(cert_chain,
                                                                                     &key_der));
     }
 
@@ -273,6 +275,8 @@ impl ClientConfig {
 /// Container for unsafe APIs
 #[cfg(feature = "dangerous_configuration")]
 pub mod danger {
+    use std::sync::Arc;
+
     use super::ClientConfig;
     use super::verify::ServerCertVerifier;
 
@@ -285,7 +289,7 @@ pub mod danger {
     impl<'a> DangerousClientConfig<'a> {
         /// Overrides the default `ServerCertVerifier` with something else.
         pub fn set_certificate_verifier(&mut self,
-                                        verifier: Box<ServerCertVerifier>) {
+                                        verifier: Arc<ServerCertVerifier>) {
             self.cfg.verifier = verifier;
         }
     }
@@ -347,6 +351,12 @@ pub struct ClientSessionImpl {
     pub common: SessionCommon,
     pub error: Option<TLSError>,
     pub state: &'static client_hs::State,
+}
+
+impl fmt::Debug for ClientSessionImpl {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClientSessionImpl").finish()
+    }
 }
 
 impl ClientSessionImpl {
@@ -540,6 +550,7 @@ impl ClientSessionImpl {
 }
 
 /// This represents a single TLS client session.
+#[derive(Debug)]
 pub struct ClientSession {
     // We use the pimpl idiom to hide unimportant details.
     imp: ClientSessionImpl,

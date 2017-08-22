@@ -286,7 +286,7 @@ impl SupportedMandatedSignatureSchemes for SupportedSignatureSchemes {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum ServerNamePayload {
     HostName(String),
     Unknown(Payload),
@@ -317,19 +317,10 @@ impl ServerNamePayload {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ServerName {
     pub typ: ServerNameType,
     pub payload: ServerNamePayload,
-}
-
-impl ServerName {
-    pub fn get_hostname_str(&self) -> Option<&str> {
-        match &self.payload {
-            &ServerNamePayload::HostName(ref s) => Some(s),
-            _ => None,
-        }
-    }
 }
 
 impl Codec for ServerName {
@@ -356,33 +347,18 @@ impl Codec for ServerName {
 declare_u16_vec!(ServerNameRequest, ServerName);
 
 pub trait ConvertServerNameList {
-    fn get_hostname(&self) -> Option<&ServerName>;
+    fn get_hostname(&self) -> Option<&str>;
 }
 
 impl ConvertServerNameList for ServerNameRequest {
-    fn get_hostname(&self) -> Option<&ServerName> {
+    fn get_hostname(&self) -> Option<&str> {
         for name in self {
-            if let ServerNamePayload::HostName(_) = name.payload {
-                return Some(name);
+            if let ServerNamePayload::HostName(ref hostname) = name.payload {
+                return Some(hostname);
             }
         }
 
         None
-    }
-}
-
-pub fn same_hostname_or_both_none(a: Option<&ServerName>,
-                                  b: Option<&ServerName>) -> bool {
-    match (a, b) {
-        (Some(a), Some(b)) => {
-            match (&a.payload, &b.payload) {
-                (&ServerNamePayload::HostName(ref a_str),
-                 &ServerNamePayload::HostName(ref b_str)) => a_str == b_str,
-                (_, _) => false,
-            }
-        },
-        (None, None) => true,
-        _ => false,
     }
 }
 
@@ -793,7 +769,7 @@ fn can_roundtrip_multiname_sni() {
     match ext {
         ClientExtension::ServerName(req) => {
             assert_eq!(2, req.len());
-            assert_eq!(req.get_hostname().and_then(|n| n.get_hostname_str()), Some("hi"));
+            assert_eq!(req.get_hostname(), Some("hi"));
             assert_eq!(req[0].typ, ServerNameType::HostName);
             assert_eq!(req[1].typ, ServerNameType::HostName);
         }

@@ -2,7 +2,6 @@ use webpki;
 use time;
 use untrusted;
 use sct;
-use std;
 
 use key::Certificate;
 use msgs::handshake::DigitallySignedStruct;
@@ -79,7 +78,7 @@ pub trait ClientCertVerifier : Send + Sync {
 }
 
 pub struct WebPKIVerifier {
-    pub time: fn() -> Result<webpki::Time, TLSError>,
+    pub time: fn() -> time::Timespec,
 }
 
 impl ServerCertVerifier for WebPKIVerifier {
@@ -112,9 +111,7 @@ impl ClientCertVerifier for WebPKIVerifier {
 impl WebPKIVerifier {
     pub fn new() -> WebPKIVerifier {
         WebPKIVerifier {
-            time: ||
-                webpki::Time::try_from(std::time::SystemTime::now())
-                    .map_err(|_| TLSError::FailedToGetCurrentTime),
+            time: time::get_time
         }
     }
 
@@ -134,8 +131,6 @@ impl WebPKIVerifier {
         let cert = webpki::EndEntityCert::from(cert_der)
             .map_err(TLSError::WebPKIError)?;
 
-        let now = (self.time)()?;
-
         let chain: Vec<untrusted::Input> = presented_certs.iter()
             .skip(1)
             .map(|cert| untrusted::Input::from(&cert.0))
@@ -145,9 +140,8 @@ impl WebPKIVerifier {
             .iter()
             .map(|x| x.to_trust_anchor())
             .collect();
-        let trustroots = webpki::TLSServerTrustAnchors(&trustroots);
 
-        cert.verify_is_valid_tls_server_cert(SUPPORTED_SIG_ALGS, &trustroots, &chain, now)
+        cert.verify_is_valid_tls_server_cert(SUPPORTED_SIG_ALGS, &trustroots, &chain, (self.time)())
             .map_err(TLSError::WebPKIError)
             .map(|_| cert)
     }

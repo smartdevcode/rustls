@@ -15,7 +15,7 @@ use rustls::TLSError;
 use rustls::sign;
 use rustls::{Certificate, PrivateKey};
 use rustls::internal::pemfile;
-use rustls::{RootCertStore, NoClientAuth, AllowAnyAuthenticatedClient};
+use rustls::{RootCertStore, NoClientAuth, WebPKIClientAuth};
 
 extern crate webpki;
 
@@ -64,8 +64,7 @@ fn make_server_config_with_mandatory_client_auth() -> ServerConfig {
         client_auth_roots.add(&root).unwrap();
     }
 
-    let client_auth = AllowAnyAuthenticatedClient::new(client_auth_roots);
-    let mut cfg = ServerConfig::new(client_auth);
+    let mut cfg = ServerConfig::new(WebPKIClientAuth::mandatory(client_auth_roots));
     cfg.set_single_cert(get_chain(), get_key());
 
     cfg
@@ -101,7 +100,7 @@ fn do_handshake_until_error(client: &mut ClientSession,
     Ok(())
 }
 
-fn alpn_test(server_protos: Vec<String>, client_protos: Vec<String>, agreed: Option<String>) {
+fn alpn_test(server_protos: Vec<String>, client_protos: Vec<String>, agreed: Option<&str>) {
     let mut client_config = make_client_config();
     let mut server_config = make_server_config();
 
@@ -138,7 +137,7 @@ fn alpn() {
     // server chooses preference
     alpn_test(vec!["server-proto".to_string(), "client-proto".to_string()],
               vec!["client-proto".to_string(), "server-proto".to_string()],
-              Some("server-proto".to_string()));
+              Some("server-proto"));
 
     // case sensitive
     alpn_test(vec!["PROTO".to_string()], vec!["proto".to_string()], None);

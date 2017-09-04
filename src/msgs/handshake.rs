@@ -8,7 +8,6 @@ use msgs::enums::PSKKeyExchangeMode;
 use msgs::base::{Payload, PayloadU8, PayloadU16, PayloadU24};
 use msgs::codec;
 use msgs::codec::{Codec, Reader};
-use std;
 use std::fmt;
 use std::io::Write;
 use std::collections;
@@ -368,7 +367,7 @@ pub type ProtocolNameList = VecU16OfPayloadU8;
 pub trait ConvertProtocolNameList {
     fn from_strings(names: &[String]) -> Self;
     fn to_strings(&self) -> Vec<String>;
-    fn as_single_string(&self) -> Option<&str>;
+    fn to_single_string(&self) -> Option<String>;
 }
 
 impl ConvertProtocolNameList for ProtocolNameList {
@@ -392,9 +391,9 @@ impl ConvertProtocolNameList for ProtocolNameList {
         ret
     }
 
-    fn as_single_string(&self) -> Option<&str> {
+    fn to_single_string(&self) -> Option<String> {
         if self.len() == 1 {
-            std::str::from_utf8(&self[0].0).ok()
+            String::from_utf8(self[0].0.clone()).ok()
         } else {
             None
         }
@@ -802,7 +801,7 @@ fn can_roundtrip_multi_proto() {
             assert_eq!(2, prot.len());
             assert_eq!(vec!["hi".to_string(), "lo".to_string()],
                        prot.to_strings());
-            assert_eq!(prot.as_single_string(), None);
+            assert_eq!(prot.to_single_string(), None);
         }
         _ => unreachable!()
     }
@@ -827,7 +826,7 @@ fn can_roundtrip_single_proto() {
         ClientExtension::Protocols(prot) => {
             assert_eq!(1, prot.len());
             assert_eq!(vec!["hi".to_string()], prot.to_strings());
-            assert_eq!(prot.as_single_string(), Some("hi"));
+            assert_eq!(prot.to_single_string(), Some("hi".to_string()));
         }
         _ => unreachable!()
     }
@@ -1829,10 +1828,10 @@ pub trait HasServerExtensions {
         self.get_extensions().iter().find(|x| x.get_type() == ext)
     }
 
-    fn get_alpn_protocol(&self) -> Option<&str> {
+    fn get_alpn_protocol(&self) -> Option<String> {
         let ext = try_ret!(self.find_extension(ExtensionType::ALProtocolNegotiation));
         match *ext {
-            ServerExtension::Protocols(ref protos) => protos.as_single_string(),
+            ServerExtension::Protocols(ref protos) => protos.to_single_string(),
             _ => None,
         }
     }

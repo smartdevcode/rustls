@@ -22,7 +22,7 @@ use rustls::internal::msgs::enums::SignatureAlgorithm;
 extern crate webpki;
 
 fn duration_nanos(d: Duration) -> f64 {
-    (d.as_secs() as f64) + f64::from(d.subsec_nanos()) / 1e9
+    (d.as_secs() as f64) + (d.subsec_nanos() as f64) / 1e9
 }
 
 fn _bench<Fsetup, Ftest, S>(count: usize, name: &'static str, f_setup: Fsetup, f_test: Ftest)
@@ -49,7 +49,7 @@ fn time<F>(mut f: F) -> f64
     f();
     let end = Instant::now();
     let dur = duration_nanos(end.duration_since(start));
-    f64::from(dur)
+    dur as f64
 }
 
 fn transfer(left: &mut Session, right: &mut Session) {
@@ -222,7 +222,7 @@ fn bench_handshake(version: rustls::ProtocolVersion,
                  "server-auth"
              },
              resume.label(),
-             f64::from(rounds) / client_time);
+             rounds as f64 / client_time);
     println!("handshakes\t{:?}\t{:?}\tserver\t{}\t{}\t{:.2}\thandshake/s",
              version,
              suite.suite,
@@ -232,7 +232,7 @@ fn bench_handshake(version: rustls::ProtocolVersion,
                  "server-auth"
              },
              resume.label(),
-             f64::from(rounds) / server_time);
+             rounds as f64 / server_time);
 }
 
 fn do_handshake(client: &mut ClientSession, server: &mut ServerSession) {
@@ -281,11 +281,11 @@ fn bench_bulk(version: rustls::ProtocolVersion, suite: &'static rustls::Supporte
     println!("bulk\t{:?}\t{:?}\tsend\t{:.2}\tMB/s",
              version,
              suite.suite,
-             f64::from(total_mb) / time_send);
+             total_mb as f64 / time_send);
     println!("bulk\t{:?}\t{:?}\trecv\t{:.2}\tMB/s",
              version,
              suite.suite,
-             f64::from(total_mb) / time_recv);
+             total_mb as f64 / time_recv);
 }
 
 fn main() {

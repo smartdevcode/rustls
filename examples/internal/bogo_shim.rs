@@ -539,16 +539,14 @@ fn main() {
 
     let make_session = || {
         if opts.server {
-            let s: Box<rustls::Session> =
-                Box::new(rustls::ServerSession::new(server_cfg.as_ref().unwrap()));
-            s
+            let s = Box::new(rustls::ServerSession::new(server_cfg.as_ref().unwrap()));
+            s as Box<rustls::Session>
         } else {
             let dns_name =
                 webpki::DNSNameRef::try_from_ascii_str(&opts.host_name).unwrap();
-            let s: Box<rustls::Session> =
-                Box::new(rustls::ClientSession::new(client_cfg.as_ref().unwrap(),
-                                                    dns_name));
-            s
+            let s = Box::new(rustls::ClientSession::new(client_cfg.as_ref().unwrap(),
+                                                        dns_name));
+            s as Box<rustls::Session>
         }
     };
 

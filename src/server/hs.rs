@@ -813,13 +813,13 @@ impl ExpectClientHello {
             if let Some(group) = retry_group_maybe {
                 if self.done_retry {
                     return Err(illegal_param(sess, "did not follow retry request"));
-                } else {
-                    self.emit_hello_retry_request(sess, group);
-                    return Ok(self.into_expect_retried_client_hello());
                 }
-            } else {
-                return Err(incompatible(sess, "no kx group overlap with client"));
+
+                self.emit_hello_retry_request(sess, group);
+                return Ok(self.into_expect_retried_client_hello());
             }
+
+            return Err(incompatible(sess, "no kx group overlap with client"));
         }
 
         self.cross_check_certificate_and_save_sni(sess, sni, &server_key)?;
@@ -923,9 +923,7 @@ impl ExpectClientHello {
             // that hostname. Note that this doesn't fully validate that the
             // certificate is valid; it only validates that the name is one
             // that the certificate is valid for, if the certificate is
-            // valid. Indirectly, this also verifies that the SNI is a
-            // syntactically-valid hostname, according to Web PKI rules,
-            // which may differ from DNS and/or URL rules.
+            // valid.
             if !end_entity_cert.verify_is_valid_for_dns_name(sni.as_ref()).is_ok() {
                 sess.common.send_fatal_alert(AlertDescription::InternalError);
                 return Err(TLSError::General(
@@ -1368,10 +1366,10 @@ impl State for ExpectTLS12CertificateVerify {
         if let Err(e) = rc {
             sess.common.send_fatal_alert(AlertDescription::AccessDenied);
             return Err(e);
-        } else {
-            trace!("client CertificateVerify OK");
-            sess.client_cert_chain = Some(self.client_cert.take_chain());
         }
+
+        trace!("client CertificateVerify OK");
+        sess.client_cert_chain = Some(self.client_cert.take_chain());
 
         self.handshake.transcript.add_message(&m);
         Ok(self.into_expect_tls12_ccs())
@@ -1414,10 +1412,10 @@ impl State for ExpectTLS13CertificateVerify {
         if let Err(e) = rc {
             sess.common.send_fatal_alert(AlertDescription::AccessDenied);
             return Err(e);
-        } else {
-            trace!("client CertificateVerify OK");
-            sess.client_cert_chain = Some(self.client_cert.take_chain());
         }
+
+        trace!("client CertificateVerify OK");
+        sess.client_cert_chain = Some(self.client_cert.take_chain());
 
         self.handshake.transcript.add_message(&m);
         Ok(self.into_expect_tls13_finished())

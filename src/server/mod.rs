@@ -276,7 +276,7 @@ impl ServerConfig {
     ///
     /// Publicly-available web servers on the internet generally don't do client
     /// authentication; for this use case, `client_cert_verifier` should be a
-    /// `NoClientAuth`. Otherwise, use `WebPKIClientAuth` or another
+    /// `NoClientAuth`. Otherwise, use `AllowAnyAuthenticatedClient` or another
     /// implementation to enforce client authentication.
     //
     // We don't provide a default for `client_cert_verifier` because the safest
@@ -500,8 +500,8 @@ impl ServerSessionImpl {
         Some(r)
     }
 
-    pub fn get_alpn_protocol(&self) -> Option<String> {
-        self.alpn_protocol.clone()
+    pub fn get_alpn_protocol(&self) -> Option<&str> {
+        self.alpn_protocol.as_ref().map(|s| s.as_ref())
     }
 
     pub fn get_protocol_version(&self) -> Option<ProtocolVersion> {
@@ -595,7 +595,7 @@ impl Session for ServerSession {
         self.imp.get_peer_certificates()
     }
 
-    fn get_alpn_protocol(&self) -> Option<String> {
+    fn get_alpn_protocol(&self) -> Option<&str> {
         self.imp.get_alpn_protocol()
     }
 

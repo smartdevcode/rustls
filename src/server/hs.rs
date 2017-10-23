@@ -912,14 +912,26 @@ impl ExpectClientHello {
         })?;
 
         // Reject syntactically-invalid end-entity certificates.
-        webpki::EndEntityCert::from(untrusted::Input::from(end_entity_cert.as_ref())).map_err(|_| {
+        let end_entity_cert = webpki::EndEntityCert::from(
+              untrusted::Input::from(end_entity_cert.as_ref())).map_err(|_| {
             sess.common.send_fatal_alert(AlertDescription::InternalError);
             TLSError::General(
                 "end-entity certificate in certificate chain is syntactically invalid".to_string())
         })?;
 
         if let Some(ref sni) = sni {
-            // Save the SNI into the session
+            // If SNI was offered then the certificate must be valid for
+            // that hostname. Note that this doesn't fully validate that the
+            // certificate is valid; it only validates that the name is one
+            // that the certificate is valid for, if the certificate is
+            // valid.
+            if !end_entity_cert.verify_is_valid_for_dns_name(sni.as_ref()).is_ok() {
+                sess.common.send_fatal_alert(AlertDescription::InternalError);
+                return Err(TLSError::General(
+                    "The server certificate is not valid for the given SNI name".to_string()));
+            }
+
+            // Save the SNI into the session after it's been validated.
             sess.set_sni(sni.clone());
         }
 

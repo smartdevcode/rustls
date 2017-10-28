@@ -33,7 +33,6 @@ use rand;
 use sign;
 use error::TLSError;
 use handshake::{check_handshake_message, check_message};
-use untrusted;
 use webpki;
 
 use server::common::{HandshakeDetails, ServerKXDetails, ClientCertDetails};
@@ -905,36 +904,18 @@ impl ExpectClientHello {
                                             sess: &mut ServerSessionImpl,
                                             sni: Option<webpki::DNSName>,
                                             certkey: &sign::CertifiedKey) -> Result<(), TLSError> {
-        // Always reject an empty certificate chain.
-        let end_entity_cert = certkey.end_entity_cert().map_err(|()| {
-            sess.common.send_fatal_alert(AlertDescription::InternalError);
-            TLSError::General("no end-entity certificate in certificate chain".to_string())
-        })?;
-
-        // Reject syntactically-invalid end-entity certificates.
-        let end_entity_cert = webpki::EndEntityCert::from(
-              untrusted::Input::from(end_entity_cert.as_ref())).map_err(|_| {
-            sess.common.send_fatal_alert(AlertDescription::InternalError);
-            TLSError::General(
-                "end-entity certificate in certificate chain is syntactically invalid".to_string())
-        })?;
-
-        if let Some(ref sni) = sni {
-            // If SNI was offered then the certificate must be valid for
-            // that hostname. Note that this doesn't fully validate that the
-            // certificate is valid; it only validates that the name is one
-            // that the certificate is valid for, if the certificate is
-            // valid.
-            if !end_entity_cert.verify_is_valid_for_dns_name(sni.as_ref()).is_ok() {
-                sess.common.send_fatal_alert(AlertDescription::InternalError);
-                return Err(TLSError::General(
-                    "The server certificate is not valid for the given SNI name".to_string()));
+        match certkey.cross_check_end_entity_cert(&sni) {
+            Ok(_) => {
+                if let Some(ref sni) = sni {
+                    // Save the SNI into the session.
+                    sess.set_sni(sni.clone());
+                }
             }
-
-            // Save the SNI into the session after it's been validated.
-            sess.set_sni(sni.clone());
+            Err(err) => {
+                sess.common.send_fatal_alert(AlertDescription::InternalError);
+                return Err(err);
+            }
         }
-
         assert!(same_dns_name_or_both_none(sni.as_ref(), sess.get_sni()));
         Ok(())
     }

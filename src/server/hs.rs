@@ -912,9 +912,6 @@ impl ExpectClientHello {
                 }
             }
             Err(err) => {
-                if let Some(ref sni) = sni {
-                    debug!("Certificate does not match SNI {:?}", sni.as_ref());
-                }
                 sess.common.send_fatal_alert(AlertDescription::InternalError);
                 return Err(err);
             }

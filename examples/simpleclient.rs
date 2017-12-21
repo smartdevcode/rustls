@@ -7,8 +7,6 @@ extern crate rustls;
 extern crate webpki;
 extern crate webpki_roots;
 
-use rustls::Session;
-
 fn main() {
     let mut config = rustls::ClientConfig::new();
     config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
@@ -24,8 +22,7 @@ fn main() {
                       "\r\n")
               .as_bytes())
         .unwrap();
-    let ciphersuite = tls.sess.get_negotiated_ciphersuite().unwrap();
-    writeln!(&mut std::io::stderr(), "Current ciphersuite: {:?}", ciphersuite.suite).unwrap();
+
     let mut plaintext = Vec::new();
     tls.read_to_end(&mut plaintext).unwrap();
     stdout().write_all(&plaintext).unwrap();
